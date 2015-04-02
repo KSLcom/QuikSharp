@@ -60,8 +60,11 @@ namespace QuikSharp {
             ServiceManager.StartServices();
 
             _quik = new Quik();
-            Console.WriteLine("Running in Quik? : " + _quik.Debug.IsQuik().Result);
+            //Console.WriteLine("Running in Quik? : " + _quik.Debug.IsQuik().Result);
 
+            _quik.Events.OnAllTrade += Events_OnAllTrade;
+            _quik.Events.OnQuote += Events_OnQuote;
+            _quik.Events.OnOrder += Events_OnOrder;
             _quik.Events.OnStop += Events_OnStop;
             _quik.Events.OnClose += Events_OnClose;
 
@@ -71,8 +74,20 @@ namespace QuikSharp {
             }
         }
 
+        static void Events_OnOrder(DataStructures.Transaction.Order order) {
+            Console.WriteLine("Events_OnOrder: " + order.ToJson());
+        }
+
+        static void Events_OnQuote(OrderBook ob) {
+            Console.WriteLine("Events_OnQuote: " + ob.ToJson());
+        }
+
+        static void Events_OnAllTrade(DataStructures.AllTrade allTrade) {
+            Console.WriteLine("Events_OnAllTrade: " + allTrade.ToJson());
+        }
+
         static void Events_OnClose() {
-            Console.WriteLine("Events_OnClose: ");
+            Console.WriteLine("Events_OnQuote: ");
         }
 
         static void Events_OnStop(int signal) {

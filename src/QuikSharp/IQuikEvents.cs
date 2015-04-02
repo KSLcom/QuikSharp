@@ -39,10 +39,13 @@ namespace QuikSharp {
     /// OnTrade - новая сделка 
     /// OnTransReply - ответ на транзакцию 
     /// </summary>
-    public interface IQuikEvents {
+    public interface IQuikEvents : IQuikService {
         event EventHandler OnAccountBalance;
         event EventHandler OnAccountPosition;
-        event EventHandler OnAllTrade;
+        /// <summary>
+        /// Новая обезличенная сделка
+        /// </summary>
+        event AllTradeHandler OnAllTrade;
         event VoidHandler OnCleanUp;
         /// <summary>
         /// Функция вызывается перед закрытием терминала QUIK. 
@@ -60,22 +63,22 @@ namespace QuikSharp {
         /// Функция вызывается терминалом QUIK перед вызовом функции main(). В качестве параметра принимает значение полного пути к запускаемому скрипту. 
         /// Примечание: В данной функции пользователь имеет возможность инициализировать все необходимые переменные и библиотеки перед запуском основного потока main()
         /// </summary>
-        event OnInitHandler OnInit;
+        event InitHandler OnInit;
         event EventHandler OnMoneyLimit;
         event EventHandler OnMoneyLimitDelete;
         event EventHandler OnNegDeal;
         event EventHandler OnNegTrade;
-        event EventHandler OnOrder;
+        event OrderHandler OnOrder;
         event EventHandler OnParam;
-        event EventHandler OnQuote;
+        event QuoteHandler OnQuote;
         /// <summary>
         /// Функция вызывается терминалом QUIK при остановке скрипта из диалога управления. 
         /// Примечание: Значение параметра «stop_flag» – «1».После окончания выполнения функции таймаут завершения работы скрипта 5 секунд. По истечении этого интервала функция main() завершается принудительно. При этом возможна потеря системных ресурсов.
         /// </summary>
-        event OnStopHandler OnStop;
+        event StopHandler OnStop;
         event EventHandler OnStopOrder;
-        event EventHandler OnTrade;
-        event EventHandler OnTransReply;
+        event TradeHandler OnTrade;
+        event TransReplyHandler OnTransReply;
 
     }
 }

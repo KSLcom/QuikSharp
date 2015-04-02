@@ -1,8 +1,10 @@
 ﻿// Copyright (C) 2014 Victor Baybekov
 
+using System;
+
 namespace QuikSharp {
     /// <summary>
-    /// Main class to abstract Quik as a .NET class
+    /// Quik interface in .NET
     /// </summary>
     public class Quik {
         /// <summary>
@@ -10,10 +12,15 @@ namespace QuikSharp {
         /// </summary>
         public const int DefaultPort = 34130;
 
-        public Quik(int port = DefaultPort) {
+        /// <summary>
+        /// Quik interface in .NET constructor
+        /// </summary>
+        public Quik(int port = DefaultPort, IPersistentStorage storage = null) {
+            if (storage == null) { Storage = new EsentStorage(); } else { Storage = storage; }
             QuikService = QuikService.Create(port);
+            // poor man's DI
+            QuikService.Storage = Storage;
             Events = QuikService.Events;
-
             Debug = new DebugFunctions(port);
             Service = new ServiceFunctions(port);
             Class = new ClassFunctions(port);
@@ -21,8 +28,23 @@ namespace QuikSharp {
             Trading = new TradingFunctions(port);
         }
 
+
         private QuikService QuikService { get; set; }
 
+
+        /// <summary>
+        /// Quik current data is all in local time. This property allows to convert it to UTC datetime
+        /// </summary>
+        public TimeZoneInfo TimeZoneInfo { get; set; }
+
+        /// <summary>
+        /// Persistent transaction storage
+        /// </summary>
+        public IPersistentStorage Storage { get; set; }
+
+        /// <summary>
+        /// Debug functions
+        /// </summary>
         public DebugFunctions Debug { get; set; }
 
         /// <summary>

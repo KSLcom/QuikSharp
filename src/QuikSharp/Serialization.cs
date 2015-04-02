@@ -2,18 +2,26 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
 using System.Runtime.Serialization.Formatters;
+using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Isam.Esent.Collections.Generic;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Linq;
 using QuikSharp.DataStructures;
+using QuikSharp.DataStructures.Transaction;
 
 namespace QuikSharp {
     /// <summary>
     /// Extensions for JSON.NET
     /// </summary>
     public static class JsonExtensions {
+        /// <summary>
+        /// 
+        /// </summary>
         public static T FromJson<T>(this string json) {
             var obj = JsonConvert.DeserializeObject<T>(json, new JsonSerializerSettings {
                 TypeNameHandling = TypeNameHandling.None
@@ -26,23 +34,62 @@ namespace QuikSharp {
             return obj;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
         public static object FromJson(this string json, Type type) {
             var obj = JsonConvert.DeserializeObject(json, type, new JsonSerializerSettings {
                 TypeNameHandling = TypeNameHandling.None,
-                //NullValueHandling = NullValueHandling.Ignore
+                // NB this is important for correctness and performance
+                // Transaction could have many null properties
+                NullValueHandling = NullValueHandling.Ignore
             });
             return obj;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
         public static string ToJson<T>(this T obj) {
 
             var message = JsonConvert.SerializeObject(obj, Formatting.None,
                 new JsonSerializerSettings {
                     TypeNameHandling = TypeNameHandling.None, // Objects
                     TypeNameAssemblyFormat = FormatterAssemblyStyle.Simple,
-                    //NullValueHandling = NullValueHandling.Ignore
+                    // NB this is important for correctness and performance
+                    // Transaction could have many null properties
+                    NullValueHandling = NullValueHandling.Ignore
                 });
             return message;
+        }
+
+
+        /// <summary>
+        /// Returns indented JSON
+        /// </summary>
+        public static string ToJsonFormatted<T>(this T obj) {
+
+            var message = JsonConvert.SerializeObject(obj, Formatting.Indented,
+                new JsonSerializerSettings {
+                    TypeNameHandling = TypeNameHandling.None, // Objects
+                    TypeNameAssemblyFormat = FormatterAssemblyStyle.Simple,
+                    // NB this is important for correctness and performance
+                    // Transaction could have many null properties
+                    NullValueHandling = NullValueHandling.Ignore
+                });
+            return message;
+        }
+
+        internal static PersistentBlob ToBlob<T>(this T value) {
+            var bytes = value.ToJson().ToZipBytes();
+            var blob = new PersistentBlob(bytes);
+            return blob;
+        }
+
+        internal static T FromBlob<T>(this PersistentBlob value) {
+            var bytes = value.GetBytes();
+            var json = bytes.FromZipBytes();
+            return json.FromJson<T>();
         }
     }
 
@@ -97,16 +144,14 @@ namespace QuikSharp {
                                          object existingValue,
                                          JsonSerializer serializer) {
             var t = JToken.Load(reader);
-            string target = t.Value<string>();
-            if (target != null) {
-                int hh = int.Parse(target.Substring(0, 2));
-                int mm = int.Parse(target.Substring(2, 2));
-                int ss = int.Parse(target.Substring(4, 2));
-                var now = DateTime.Now;
-                var dt = new DateTime(now.Year, now.Month, now.Day, hh, mm, ss);
-                return dt;
-            }
-            return null;
+            var target = t.Value<string>();
+            if (target == null) return null;
+            var hh = int.Parse(target.Substring(0, 2));
+            var mm = int.Parse(target.Substring(2, 2));
+            var ss = int.Parse(target.Substring(4, 2));
+            var now = DateTime.Now;
+            var dt = new DateTime(now.Year, now.Month, now.Day, hh, mm, ss);
+            return dt;
         }
 
         public override void WriteJson(JsonWriter writer,
@@ -128,10 +173,12 @@ namespace QuikSharp {
                 var cmd = jObject.GetValue("cmd").Value<string>();
                 var message = jObject.GetValue("lua_error").Value<string>();
                 LuaException exn; 
-                if (cmd == "lua_transaction_error") {
-                    exn = new TransactionException(message);
-                } else {
-                    exn = new LuaException(message);
+                switch (cmd) { case "lua_transaction_error":
+                        exn = new TransactionException(message);
+                        break;
+                    default:
+                        exn = new LuaException(message);
+                        break;
                 }
                 KeyValuePair<TaskCompletionSource<IMessage>, Type> kvp;
                 _service.Responses.TryRemove(id, out kvp);
@@ -146,7 +193,8 @@ namespace QuikSharp {
             } else if (FieldExists("cmd", jObject)) {
                 // without id we have an event
                 EventNames eventName;
-                var parsed = Enum.TryParse(jObject.GetValue("cmd").Value<string>(), true, out eventName);
+                string cmd = jObject.GetValue("cmd").Value<string>();
+                var parsed = Enum.TryParse(cmd, true, out eventName);
                 if (parsed) {
                     switch (eventName) {
                         case EventNames.OnAccountBalance:
@@ -155,8 +203,7 @@ namespace QuikSharp {
                             break;
 
                         case EventNames.OnAllTrade:
-                            objectType = typeof(Message<AllTrade>);
-                            return (IMessage)Activator.CreateInstance(objectType);
+                            return new Message<AllTrade> { Data = new AllTrade() };
 
                         case EventNames.OnCleanUp:
                         case EventNames.OnClose:
@@ -164,8 +211,7 @@ namespace QuikSharp {
                         case EventNames.OnDisconnected:
                         case EventNames.OnInit:
                         case EventNames.OnStop:
-                            objectType = typeof(Message<string>);
-                            return (IMessage)Activator.CreateInstance(objectType);
+                            return new Message<string>();
 
                         case EventNames.OnDepoLimit:
                             break;
@@ -188,28 +234,46 @@ namespace QuikSharp {
                             break;
                         case EventNames.OnNegTrade:
                             break;
+
                         case EventNames.OnOrder:
-                            break;
+                            return new Message<Order> {
+                                Data = new Order()
+                            };
+
                         case EventNames.OnParam:
                             break;
+
                         case EventNames.OnQuote:
-                            break;
+                            return new Message<OrderBook> {
+                                Data = new OrderBook()
+                            };
+
                         case EventNames.OnStopOrder:
                             break;
+
                         case EventNames.OnTrade:
-                            break;
+                            return new Message<Trade> {
+                                Data = new Trade()
+                            };
                         case EventNames.OnTransReply:
-                            objectType = typeof(Message<TransactionReply>);
-                            return (IMessage)Activator.CreateInstance(objectType);
+                            return new Message<TransactionReply> {
+                                Data = new TransactionReply()
+                            };
                         default:
                             throw new ArgumentOutOfRangeException();
                     }
                 } else {
-                    // TODO if we have a custom event (e.g. add some processing  of standard Quik event) then we must process it here
-                    return (IMessage)Activator.CreateInstance(typeof(Message<string>));
+                    // if we have a custom event (e.g. add some processing  of standard Quik event) then we must process it here
+                    switch (cmd) {
+                        case "lua_error":
+                            return new Message<string>();
+                        default:
+                            //return (IMessage)Activator.CreateInstance(typeof(Message<string>));
+                            throw new InvalidOperationException("Unknown command in a message: " + cmd);
+                    }
                 }
             }
-            throw new ApplicationException("Not implemented event deserialization");
+            throw new ArgumentException("Bad message format: no cmd or lua_error fields");
         }
 
         private static bool FieldExists(string fieldName, JObject jObject) {
@@ -217,8 +281,6 @@ namespace QuikSharp {
         }
     }
 
-
-    // Thanks to jdavies http://stackoverflow.com/a/8031283/801189
 
     internal abstract class JsonCreationConverter<T> : JsonConverter {
         /// <summary>
@@ -254,7 +316,82 @@ namespace QuikSharp {
         public override void WriteJson(JsonWriter writer,
                                        object value,
                                        JsonSerializer serializer) {
-            throw new NotImplementedException();
+            throw new InvalidOperationException();
         }
     }
+
+
+    /// <summary>
+    /// 
+    /// </summary>
+    internal static class ZipExtentions {
+
+
+        /// <summary>
+        /// In-memory compress
+        /// </summary>
+        internal static byte[] GZip(this byte[] bytes) {
+            using (var inStream = new MemoryStream(bytes)) {
+                using (var outStream = new MemoryStream()) {
+                    using (var compress = new GZipStream(outStream, CompressionMode.Compress)) {
+                        inStream.CopyTo(compress);
+                    }
+                    return outStream.ToArray();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Uses UTF8 bytes to zip
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        internal static byte[] ToZipBytes(this string value) {
+            using (var inStream = new MemoryStream(Encoding.UTF8.GetBytes(value))) {
+                using (var outStream = new MemoryStream()) {
+                    using (var compress = new GZipStream(outStream, CompressionMode.Compress)) {
+                        inStream.CopyTo(compress);
+                    }
+                    return outStream.ToArray();
+                }
+            }
+        }
+
+        /// <summary>
+        /// In-memory uncompress
+        /// </summary>
+        internal static byte[] UnGZip(this byte[] bytes) {
+            byte[] outBytes;
+            using (var inStream = new MemoryStream(bytes)) {
+                using (var outStream = new MemoryStream()) {
+                    using (var deCompress = new GZipStream(inStream, CompressionMode.Decompress)) {
+                        deCompress.CopyTo(outStream);
+                    }
+                    outBytes = outStream.ToArray();
+                }
+            }
+            return outBytes;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="bytes"></param>
+        /// <returns></returns>
+        internal static string FromZipBytes(this byte[] bytes) {
+            byte[] outBytes;
+            using (var inStream = new MemoryStream(bytes)) {
+                using (var outStream = new MemoryStream()) {
+                    using (var deCompress = new GZipStream(inStream, CompressionMode.Decompress)) {
+                        deCompress.CopyTo(outStream);
+                    }
+                    outBytes = outStream.ToArray();
+                }
+            }
+            return Encoding.UTF8.GetString(outBytes);
+        }
+
+
+    }
+
 }

@@ -1,12 +1,9 @@
 --~ Copyright Ⓒ 2014 Victor Baybekov
 
-package.path = package.path..";"..".\\?.lua;"..".\\?.luac"
-package.cpath = package.cpath..";"..'.\\clibs\\?.dll'
 local socket = require ("socket")
-local json = require "cjson" --require ("dkjson")
+local json = require "cjson"
 
 local qsutils = {}
-
 
 --- Sleep that always works
 function delay(msec)
@@ -59,33 +56,36 @@ function split(inputstr, sep)
     return t
 end
 
-local function from_json(str)
+function from_json(str)
     local status, msg= pcall(json.decode, str)
     if status then
         return msg
     else
---        error(msg)
+        return nil, msg
     end
 end
 
-local function to_json(msg)
+function to_json(msg)
     local status, str= pcall(json.encode, msg)
     if status then
         return str
     else
---        error(str)
+        error(str)
     end
 end
 
-
 -- log files
 os.execute("mkdir " .. "logs")
-logfile = io.open ("logs/QuikSharp.log", "a")
+logfile = io.open (script_path.. "/logs/QuikSharp.log", "a")
 missed_values_file = nil
 missed_values_file_name = nil
 
 -- current connection state
 is_connected = false
+--- indicates that QuikSharp was connected during this session
+-- used to write missed values to a file and then resend them if a client reconnects
+-- to avoid resending missed values, stop the script in Quik
+was_connected = false
 local port = 34130
 local server = socket.bind('localhost', port, 1)
 local client
@@ -104,7 +104,6 @@ local function getClient()
     end
 end
 
-
 function qsutils.connect()
     if not is_connected then
         log('Connecting...', 1)
@@ -116,16 +115,20 @@ function qsutils.connect()
         client = getClient()
         if client then
             is_connected = true
+            was_connected = true
             log('Connected!', 1)
             if missed_values_file then
+                log("Loading values that a client missed during disconnect", 2)
                 missed_values_file:flush()
                 missed_values_file:close()
                 missed_values_file = nil
                 local previous_file_name = missed_values_file_name
                 missed_values_file_name = nil
                 for line in io.lines(previous_file_name) do
-                    responseClient:send(line..'\n')
+                    client:send(line..'\n')
                 end
+                -- remove previous file
+                pcall(os.remove, previous_file_name)
             end
         end
     end
@@ -138,6 +141,7 @@ local function disconnected()
         pcall(client.close, client)
         client = nil
     end
+    OnQuikSharpDisconnected()
 end
 
 --- get a decoded message as a table
@@ -147,12 +151,11 @@ function receiveRequest()
     end
     local status, requestString= pcall(client.receive, client)
     if status and requestString then
-        local msg_table, pos, err = from_json(requestString)
+        local msg_table, err = from_json(requestString)
         if err then
             log(err, 3)
             return nil, err
         else
-            --log(requestString)
             return msg_table
         end
     else
@@ -168,7 +171,6 @@ function sendResponse(msg_table)
     if is_connected then
         local status, res = pcall(client.send, client, responseString..'\n')
         if status and res then
-            --log(responseString)
             return true
         else
             disconnected()
@@ -176,9 +178,9 @@ function sendResponse(msg_table)
         end
     end
     -- we need this break instead of else because we could lose connection inside the previous if
-    if not is_connected then
+    if not is_connected and was_connected then
         if not missed_values_file then
-            missed_values_file_name = "logs/MissedValues."..os.time()..".log"
+            missed_values_file_name = script_path .. "/logs/MissedValues."..os.time()..".log"
             missed_values_file = io.open(missed_values_file_name, "a")
         end
         missed_values_file:write(responseString..'\n')
