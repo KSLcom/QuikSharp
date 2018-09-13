@@ -1,37 +1,49 @@
-// Copyright (C) 2014 Victor Baybekov
+// Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
+using Newtonsoft.Json;
 
-namespace QuikSharp {
+namespace QuikSharp.DataStructures
+{
     /// <summary>
     /// Описание класса
     /// </summary>
-    public class ClassInfo {
+    public class ClassInfo
+    {
         // ReSharper disable InconsistentNaming
 
         /// <summary>
         /// Код фирмы
         /// </summary>
-        public string firmid { get; set; }
-        
+        [JsonProperty("firmid")]
+        public string FirmId { get; set; }
+
         /// <summary>
         /// Наименование класса
         /// </summary>
-        public string name { get; set; }
+        [JsonProperty("name")]
+        public string Name { get; set; }
+
         /// <summary>
         /// Код класса
         /// </summary>
-        public string code { get; set; }
+        [JsonProperty("code")]
+        public string Code { get; set; }
+
         /// <summary>
         /// Количество параметров в классе
         /// </summary>
-        public int npars { get; set; }
+        [JsonProperty("npars")]
+        public int NPars { get; set; }
+
         /// <summary>
         /// Количество бумаг в классе
         /// </summary>
-        public int nsecs { get; set; }
+        [JsonProperty("nsecs")]
+        public int NSecs { get; set; }
+
         // ReSharper restore InconsistentNaming
 
-
-        public override string ToString() {
+        public override string ToString()
+        {
             return this.ToJson();
         }
     }

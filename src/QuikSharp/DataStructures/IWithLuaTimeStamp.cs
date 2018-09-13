@@ -1,14 +1,16 @@
-﻿// Copyright (C) 2014 Victor Baybekov
+﻿// Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
 
 using Newtonsoft.Json;
 
-namespace QuikSharp.DataStructures {
+namespace QuikSharp.DataStructures
+{
     /// <summary>
-    /// 
+    ///
     /// </summary>
-    public interface IWithLuaTimeStamp {
+    public interface IWithLuaTimeStamp
+    {
         // TODO change to TimeStamp without refactoring and add cast to DateTime
-        // then replace all assignments. 
+        // then replace all assignments.
         /// <summary>
         /// Lua timestamp
         /// </summary>

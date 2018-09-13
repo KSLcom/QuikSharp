@@ -1,3 +1,18 @@
+#### 1.0.0-beta1 - July 10 2017
+* Update NuGet. Minor changes and some new functions (e.g. GetTradesAccounts).
+
+#### 1.0.0-alpha - February 10 2017
+* Cumulative update with all commits over the past 15 months
+* Almost all QLua API is implemented
+
+#### 0.3.0 - November 11 2015
+* Cumulative update with all commits over the past 6 months
+
+#### 0.2.1 - May 1 2015
+* MARKET_MAKER_ORDER is nullable, because it is not supported by FORTS
+
+#### 0.2.0 - April 20 2015
+* Fixed race conditions both in Lua and on C# side
 #### 0.1.0 - December 21 2014
 * Initial release. Tested connection and basic Quik functions and events.
 #### 0.1.1 - December 21 2014
@@ -14,3 +29,6 @@ for Quik and 70 micros for a standalone Lua (60 in profiler in release mode).
 * Improved performance by c.30% in response listener by spawning new tasks for each message
 #### 0.1.5 - March 19 2015
 * Fixed lua51.dll proxy issue
+#### 0.1.6 - April 3 2015
+* Fixed lua51.dll bug
+* Apache 2.0 instead of GPL

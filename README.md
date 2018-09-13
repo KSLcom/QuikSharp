@@ -1,80 +1,70 @@
-﻿QuikSharp
+﻿QUIK#
 ==========
-QuikSharp is the Quik Lua interface ported to .NET.
+QUIK# (QUIK Sharp) is the QUIK Lua interface ported to .NET.
 
-QuikSharp exposes all functions and events available in QLUA as C# async functions
+QUIK# exposes all functions and events available in QLUA as C# async functions
 and events.
 
-A simple Ping/Pong benchmark shows c.60 microseconds roundtrip time for Quik
- (MacBook Air 2012). This is almost negligible compared to Quik's native latency
+A simple Ping/Pong benchmark shows c.60 microseconds roundtrip time for QUIK
+ (MacBook Air 2012). This is almost negligible compared to QUIK's native latency
  (from the terminal to a remote server).
 
-Russian version: вопросы и комментарии оставляйте в [Issues](https://github.com/buybackoff/QuikSharp/issues).
+[**Russian version**](https://github.com/finsight/QUIKSharp/blob/master/README.RU.md)
+
 
 Install & Usage
 ================
 
-Use NuGet to install QuikSharp into your project. 
+The best way to use QUIK# is to build the project from the master branch. That will give you 
+the latest features and bug fixes.
 
-    PM> Install-Package QuikSharp
+You may use NuGet to install the latest version of QUIK# into your project, but before verion 1.0 it 
+may be unstable and miss some latest features from the master branch.
+
+    PM> Install-Package QUIKSharp
 
 
 A folder `lua` with all required scritps will be added to your project. 
-Start `QuikSharp.lua` script from Quik and normally never stop it
-manually (it will be started automatically when Quik starts). See unit tests for 
-usage examples in C#.
+Start `QuikSharp.lua` script from QUIK and never stop it
+manually (it will be started automatically when QUIK starts). See demo applications and 
+unit tests for usage examples in C#.
 
 
-Why use .NET for Quik
+Why use .NET for QUIK
 =============
 (and not Lua or DDE or other libs)
 
-* Because one should be crazy to use for trading some 3rd party *closed source* code 
-with unclear licensing and support (even tested and popular like StockSharp).
+* Because implementing trading systems with 3rd party *closed source* code with unclear 
+licensing and support is risky and leads to vendor lock-in (even tested and popular like StockSharp).
 
-* Because Quik is dumb, slow and painful - while .NET is smart, 
+* Because QUIK's Lua interface is dumb, slow and painful - while .NET is smart, 
 fast and pleasure to work with.
 
-* Because Quik is a niche legacy soft that has its market share for 
+* Because QUIK is a niche legacy soft that has its market share for 
 historical reasons. One should not invest more than a minimum into such software, but 
 should abstract away its idiosyncrasies as much as possible. Most platforms have .NET API
 and it is the choice for new development.
 
 
-LICENCE
-=======
-QuikSharp - Quik interface in .NET
+Who owns QUIK#?
+================
 
-Copyright Ⓒ 2014 Victor Baybekov
+QUIK# is owned by all its [authors and contributors](https://github.com/finsight/QUIKSharp/blob/master/AUTHORS.md).
+This is an open source project licensed under the [Apache 2.0 license](https://tldrlegal.com/license/apache-license-2.0-(apache-2.0)).
+There are open issues in the issues tab that still need to be taken care of, feel free to pick one up and submit a patch to the project.
 
-This library is dual-licensed: you can redistribute it and/or modify
-it under the terms of the GNU General Public License version 3 as 
-published by the Free Software Foundation. For the terms of this 
-license, see the GNU GPL v3 section of the LICENSE.txt file or 
-<http://www.gnu.org/licenses/>.
-
-You could use this library under the terms of the GNU General
-Public License, but WITHOUT ANY WARRANTY; without even the implied 
-warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-See the GNU General Public License for more details.
-
-Alternatively, you can license this library under a proprierary 
-license. Please contact the author for details.
+QUIK workstation and trademark are owned by [ARQA Technologies](https://arqatech.com/ru/products/quik/). This project is not affiliated 
+with the company in any way and our use of the name is *fair use* - we just make the live of the terminal users simpler and happier!
 
 
-ЛИЦЕНЗИЯ
---------
-Вы можете использовать эту библиотеку под лицензией GNU GPL v3. Это значит,
-что если Вы включаете библиотеку в свое приложение и распространяете 
-это приложение сторонним пользователям, то вы должны опубликовать код Вашего
-приложения. Если Вы используете код для личных целей, то Вы можете вносить любые
-изменения и использовать библиотеку как угодно. Ответственность автора за
-результаты использования библиотеки полностью исключена. Автор не дает никаких
-гарантий, что в какой-то момент Вы не сольете счет, используя библиотеку, и не будете должны 
-брокеру, клиентам, родственникам и бюджету РФ (даже если читаете текст лицензии).
-В случае разночтений англоязычной и русскоязычной версий приоритет имеет англоязычная.
+License
+----------------------
 
-Если Вам нужна коммерческая лицензия для этой библиотеки, напишите автору
-в разделе Issues этого репозитария.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
+    http://www.apache.org/licenses/LICENSE-2.0
 
+This software is distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.

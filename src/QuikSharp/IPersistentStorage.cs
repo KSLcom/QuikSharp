@@ -1,27 +1,31 @@
-// Copyright (C) 2014 Victor Baybekov
+// Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
 
-using System.Runtime.Caching;
-using Microsoft.Isam.Esent.Collections.Generic;
+using System.Collections.Generic;
 
-namespace QuikSharp {
+namespace QuikSharp
+{
     /// <summary>
-    /// 
+    ///
     /// </summary>
-    public interface IPersistentStorage {
+    public interface IPersistentStorage
+    {
         /// <summary>
-        /// 
+        ///
         /// </summary>
         void Set<T>(string key, T value);
+
         /// <summary>
-        /// 
+        ///
         /// </summary>
         T Get<T>(string key);
+
         /// <summary>
-        /// 
+        ///
         /// </summary>
         bool Contains(string key);
+
         /// <summary>
-        /// 
+        ///
         /// </summary>
         bool Remove(string key);
     }
@@ -29,48 +33,55 @@ namespace QuikSharp {
     /// <summary>
     /// Thread-unsafe
     /// </summary>
-    public class EsentStorage : IPersistentStorage {
-        private static readonly PersistentDictionary<string, PersistentBlob> EsentDic
-            = new PersistentDictionary<string, PersistentBlob>("./PersistentStorage");
+    public class InMemoryStorage : IPersistentStorage
+    {
+        private static readonly IDictionary<string, object> Dic
+            = new Dictionary<string, object>();
 
-        private static readonly MemoryCache Cache = MemoryCache.Default;
+        private object syncRoot = new object();
 
         /// <summary>
         /// Useful for more advanced manipulation than IPersistentStorage
         /// QuikSharp depends only on IPersistentStorage
         /// </summary>
-        public static PersistentDictionary<string, PersistentBlob> Storage { get { return EsentDic; } }
+        private static IDictionary<string, object> Storage { get { return Dic; } }
 
-        public void Set<T>(string key, T value) {
-            Cache[key] = value;
-            EsentDic[key] = value.ToBlob();
+        public void Set<T>(string key, T value)
+        {
+            lock (syncRoot)
+            {
+                Dic[key] = value;
+            }
         }
 
-        public T Get<T>(string key) {
-            var v = Cache[key];
-            if (v != null)
+        public T Get<T>(string key)
+        {
+            lock (syncRoot)
             {
+                var v = (T)Dic[key];
                 return (T)v;
             }
-            v = EsentDic[key].FromBlob<T>();
-            Cache[key] = v;
-            return (T)v;
         }
 
-        public bool Contains(string key) {
-            if (Cache.Contains(key)) {
-                return true;
+        public bool Contains(string key)
+        {
+            lock (syncRoot)
+            {
+                if (Dic.ContainsKey(key))
+                {
+                    return true;
+                }
+                return false;
             }
-            if (EsentDic.ContainsKey(key)) {
-                return true;
-            }
-            return false;
         }
 
-        public bool Remove(string key) {
-            Cache.Remove(key);
-            var s = EsentDic.Remove(key);
-            return s;
+        public bool Remove(string key)
+        {
+            lock (syncRoot)
+            {
+                var s = Dic.Remove(key);
+                return s;
+            }
         }
     }
 }

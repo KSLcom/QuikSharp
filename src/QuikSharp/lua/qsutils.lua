@@ -1,8 +1,7 @@
---~ Copyright Ⓒ 2014 Victor Baybekov
+--~ // Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
 
 local socket = require ("socket")
-local json = require "cjson"
-
+local json = require ("dkjson")
 local qsutils = {}
 
 --- Sleep that always works
@@ -48,7 +47,8 @@ function split(inputstr, sep)
     if sep == nil then
         sep = "%s"
     end
-    local t={} ; i=1
+    local t={}
+    local i=1
     for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
         t[i] = str
         i = i + 1
@@ -57,7 +57,7 @@ function split(inputstr, sep)
 end
 
 function from_json(str)
-    local status, msg= pcall(json.decode, str)
+    local status, msg= pcall(json.decode, str, 1, json.null) -- dkjson
     if status then
         return msg
     else
@@ -66,7 +66,7 @@ function from_json(str)
 end
 
 function to_json(msg)
-    local status, str= pcall(json.encode, msg)
+    local status, str= pcall(json.encode, msg, { indent = false }) -- dkjson
     if status then
         return str
     else
@@ -87,33 +87,66 @@ is_connected = false
 -- to avoid resending missed values, stop the script in Quik
 was_connected = false
 local port = 34130
-local server = socket.bind('localhost', port, 1)
-local client
+local callback_port = port + 1
+-- we need two ports since callbacks and responses conflict and write to the same socket at the same time
+-- I do not know how to make locking in Lua, it is just simpler to have two independent connections
+local response_server = socket.bind('localhost', port, 1)
+local callback_server = socket.bind('localhost', callback_port, 1)
+local response_client
+local callback_client
+
 
 --- accept client on server
-local function getClient()
+local function getResponseServer()
     print('Waiting for a client')
-    local i = 0
-    while true do
-        local status, client, err = pcall(server.accept, server)
-        if status and client then
-            return client
-        else
-            log(err, 3)
-        end
-    end
+	local i = 0
+	if not response_server then
+		log("Cannot bind to response_server, probably the port is already in use", 3)
+	else
+		while true do
+			local status, client, err = pcall(response_server.accept, response_server )
+			if status and client then
+				return client
+			else
+				log(err, 3)
+			end
+		end
+	end
+end
+
+local function getCallbackClient()
+    print('Waiting for a client')
+	local i = 0
+	if not callback_server then
+		log("Cannot bind to callback_server, probably the port is already in use", 3)
+	else
+		while true do
+			local status, client, err = pcall(callback_server.accept, callback_server)
+			if status and client then
+				return client
+			else
+				log(err, 3)
+			end
+		end
+	end
 end
 
 function qsutils.connect()
     if not is_connected then
         log('Connecting...', 1)
-        if client then
-            log("is_connected is false but client is not nil", 3)
+        if response_client then
+            log("is_connected is false but the response client is not nil", 3)
             -- Quik crashes without pcall
-            pcall(client.close, requestClient)
+            pcall(response_client.close, response_client)
         end
-        client = getClient()
-        if client then
+        if callback_client then
+            log("is_connected is false but the callback client is not nil", 3)
+            -- Quik crashes without pcall
+            pcall(callback_client.close, callback_client)
+        end
+        response_client = getResponseServer()
+        callback_client = getCallbackClient()
+        if response_client and callback_client then
             is_connected = true
             was_connected = true
             log('Connected!', 1)
@@ -125,7 +158,7 @@ function qsutils.connect()
                 local previous_file_name = missed_values_file_name
                 missed_values_file_name = nil
                 for line in io.lines(previous_file_name) do
-                    client:send(line..'\n')
+                    callback_client:send(line..'\n')
                 end
                 -- remove previous file
                 pcall(os.remove, previous_file_name)
@@ -137,9 +170,13 @@ end
 local function disconnected()
     is_connected = false
     print('Disconnecting...')
-    if client then
-        pcall(client.close, client)
-        client = nil
+    if response_client then
+        pcall(response_client.close, response_client)
+        response_client = nil
+    end
+    if callback_client then
+        pcall(callback_client.close, callback_client)
+        callback_client = nil
     end
     OnQuikSharpDisconnected()
 end
@@ -149,7 +186,7 @@ function receiveRequest()
     if not is_connected then
         return nil, "not conencted"
     end
-    local status, requestString= pcall(client.receive, client)
+    local status, requestString= pcall(response_client.receive, response_client)
     if status and requestString then
         local msg_table, err = from_json(requestString)
         if err then
@@ -169,7 +206,23 @@ function sendResponse(msg_table)
     -- if not msg_table.t then msg_table.t = timemsec() end
     local responseString = to_json(msg_table)
     if is_connected then
-        local status, res = pcall(client.send, client, responseString..'\n')
+        local status, res = pcall(response_client.send, response_client, responseString..'\n')
+        if status and res then
+            return true
+        else
+            disconnected()
+            return nil, err
+        end
+    end
+end
+
+
+function sendCallback(msg_table)
+    -- if not set explicitly then set CreatedTime "t" property here
+    -- if not msg_table.t then msg_table.t = timemsec() end
+    local callback_string = to_json(msg_table)
+    if is_connected then
+        local status, res = pcall(callback_client.send, callback_client, callback_string..'\n')
         if status and res then
             return true
         else
@@ -180,10 +233,10 @@ function sendResponse(msg_table)
     -- we need this break instead of else because we could lose connection inside the previous if
     if not is_connected and was_connected then
         if not missed_values_file then
-            missed_values_file_name = script_path .. "/logs/MissedValues."..os.time()..".log"
+            missed_values_file_name = script_path .. "/logs/MissedCallbacks."..os.time()..".log"
             missed_values_file = io.open(missed_values_file_name, "a")
         end
-        missed_values_file:write(responseString..'\n')
+        missed_values_file:write(callback_string..'\n')
         return nil, "Message added to the response queue"
     end
 end

@@ -1,4 +1,4 @@
---~ Copyright Ⓒ 2014 Victor Baybekov
+--~ // Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
 
 -- is running from Quik
 function is_quik()

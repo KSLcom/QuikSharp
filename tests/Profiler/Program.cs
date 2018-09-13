@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Threading.Tasks;
 using QuikSharp;
+using QuikSharp.DataStructures.Transaction;
 
 namespace Profiler {
     public class Program {
@@ -67,8 +68,8 @@ namespace Profiler {
         }
 
         public static void Main() {
-            //Ping();
-            EchoTransaction();
+            Ping();
+            //EchoTransaction();
         }
     }
 }
